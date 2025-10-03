@@ -2,3 +2,4 @@ venv/
 .env
 measurements.db
 roadmap.md
+app/__pycache__

@@ -16,12 +16,16 @@ class MeasurementRequest(BaseModel):
     thigh_cm: float = Field(gt=0)
 
 @router.get("/read_all_measurements", status_code=status.HTTP_200_OK)
-async def read_all_measurements(db: db_dependency):
-    return db.query(MeasurementLog).all()
+async def read_all_measurements(user: user_dependency, db: db_dependency):
+    return db.query(MeasurementLog).filter(MeasurementLog.owner_id == user.get('id')).all()
 
 @router.get("/{measurement_id}", status_code=status.HTTP_200_OK)
-async def get_measurements(db: db_dependency, measurement_id: float = Path(gt=0)):
-    measurement_model = db.query(MeasurementLog).filter(MeasurementLog.id == measurement_id).first()
+async def get_measurements(user: user_dependency, db: db_dependency, measurement_id: float = Path(gt=0)):
+    measurement_model =( 
+        db.query(MeasurementLog)
+        .filter(MeasurementLog.id == measurement_id)
+        .filter(MeasurementLog.owner_id == user.get('id'))
+        .first())
 
     if measurement_model is not None:
         return measurement_model
@@ -38,8 +42,15 @@ async def create_measurement(user: user_dependency, db: db_dependency, measureme
     db.commit()
 
 @router.put("/{measurement_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def update_measurement(db: db_dependency, measurement_request: MeasurementRequest, measurement_id: int = Path(gt=0)):
-    measurement_model = db.query(MeasurementLog).filter(MeasurementLog.id == measurement_id).first()
+async def update_measurement(user: user_dependency, db: db_dependency, measurement_request: MeasurementRequest, measurement_id: int = Path(gt=0)):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication Failed")
+    
+    measurement_model = (
+        db.query(MeasurementLog)
+        .filter(MeasurementLog.id == measurement_id)
+        .filter(MeasurementLog.owner_id == user.get('id'))
+        .first())
 
     if measurement_model is None:
         raise HTTPException(status_code=404, detail="Measurement not found")
@@ -54,11 +65,15 @@ async def update_measurement(db: db_dependency, measurement_request: Measurement
     db.commit()
 
 @router.delete("/{measurement_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_measurement(db: db_dependency, measurement_id: int = Path(gt=0)):
-    measurement_model = db.query(MeasurementLog).filter(MeasurementLog.id == measurement_id).first()
+async def delete_measurement(user: user_dependency, db: db_dependency, measurement_id: int = Path(gt=0)):
+    measurement_model = (
+        db.query(MeasurementLog)
+        .filter(MeasurementLog.id == measurement_id)
+        .filter(MeasurementLog.owner_id == user.get('id'))
+        .first())
 
     if measurement_model is None:
         raise HTTPException(status_code=404, detail="Measurement not found")
 
-    db.query(MeasurementLog).filter(MeasurementLog.id == measurement_id).delete()
+    db.query(MeasurementLog).filter(MeasurementLog.id == measurement_id).filter(MeasurementLog.owner_id == user.get('id')).delete()
     db.commit()

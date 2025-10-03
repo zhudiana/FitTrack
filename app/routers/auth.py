@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from app.core.config import ALGORITHM, SECRET_KEY
 from app.db.models import Users
 from app.dependencies import db_dependency
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt
 from datetime import datetime, timedelta, timezone
 
