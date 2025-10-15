@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field, EmailStr
 from app.core.config import ALGORITHM, SECRET_KEY
 from app.db.models import Users
-from app.dependencies import db_dependency
+from app.dependencies import db_dependency, get_current_user
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt
 from datetime import datetime, timedelta, timezone
@@ -24,6 +24,10 @@ class CreateUserRequest(BaseModel):
     email: EmailStr     # Validates the right email format
     sex: Optional[Literal["male", "female"]] = None
     password: str = Field(min_length=8)
+
+class UserVerification(BaseModel):
+    password: str
+    new_password: str = Field(min_length=8)
 
 class Token(BaseModel):
     access_token: str
@@ -73,3 +77,18 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username or email already exists"
         )
+
+@router.put("/change_password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(user: get_current_user, db: db_dependency, user_verification: UserVerification):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication Failed")
+
+    user_model = db.query(Users).filter(Users.id == user.get('id')).first()
+
+    if not bcrypt_context.verify(user_verification.id, user_model.hashed_password):
+        raise HTTPException(status_code=401, detail="Error on password change")
+
+    user_model.hashed_password = bcrypt_context.hash(user_verification.new_password)
+
+    db.add(user_model)
+    db.commit()
