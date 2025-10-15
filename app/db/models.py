@@ -1,6 +1,8 @@
+from typing import Optional
 from app.db.database import Base
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, ForeignKey
+from sqlalchemy import String, ForeignKey, DateTime, Boolean, text
+from sqlalchemy.sql import func
 
 
 
@@ -10,9 +12,19 @@ class Users(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     username: Mapped[str] = mapped_column(String(30), unique=True, index=True, nullable=False)
     email: Mapped[str] = mapped_column(unique=True, index=True, nullable=False)
-    sex: Mapped[str] = mapped_column(nullable=False)
-    hashed_password: Mapped[str] = mapped_column(nullable=False)
-   
+    verified_email: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    sex: Mapped[Optional[str]] = mapped_column(nullable=True)
+    hashed_password: Mapped[Optional[str]] = mapped_column(nullable=True)
+
+    is_oauth: Mapped[bool] = mapped_column(default=False) 
+    oauth_provider: Mapped[Optional[str]] = mapped_column(nullable=True)
+
+    created_at: Mapped[Optional[DateTime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[Optional[DateTime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 class MeasurementLog(Base):
     __tablename__ = "measurement_logs"

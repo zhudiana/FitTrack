@@ -1,9 +1,8 @@
-from datetime import date
-from typing import Annotated
-from fastapi.dependencies.models import Dependant
+from typing import Annotated, Literal, Optional
 from passlib.context import CryptContext
-from fastapi import APIRouter, Depends, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, status, HTTPException
+from sqlalchemy.exc import IntegrityError
+from pydantic import BaseModel, Field, EmailStr
 from app.core.config import ALGORITHM, SECRET_KEY
 from app.db.models import Users
 from app.dependencies import db_dependency
@@ -21,10 +20,10 @@ bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 
 class CreateUserRequest(BaseModel):
-    username: str
-    email: str
-    sex: str
-    password: str
+    username: str = Field(min_length=5, max_length=15)
+    email: EmailStr     # Validates the right email format
+    sex: Optional[Literal["male", "female"]] = None
+    password: str = Field(min_length=8)
 
 class Token(BaseModel):
     access_token: str
@@ -64,5 +63,13 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
         sex=create_user_request.sex,
         hashed_password=bcrypt_context.hash(create_user_request.password)
     )
-    db.add(create_user_model)
-    db.commit()
+
+    try:
+        db.add(create_user_model)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username or email already exists"
+        )
