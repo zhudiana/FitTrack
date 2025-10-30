@@ -3,6 +3,8 @@ from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI
 from app.services.google import get_user_infos_from_google_token_url
 from app.dependencies import db_dependency
 from app.db.models import Users
+from app.routers.auth import create_access_token
+from datetime import timedelta
 
 router = APIRouter()
 
@@ -43,7 +45,7 @@ async def auth_google(db: db_dependency, code: str = None):
         user = existing_user
     else:
         new_user = Users(
-            username=user_info['email'].split('@')[0],  # or generate unique username
+            username=user_info['email'].split('@')[0],  
             email=user_info['email'],
             verified_email=user_info['verified_email'],
             is_oauth=True,
@@ -54,4 +56,11 @@ async def auth_google(db: db_dependency, code: str = None):
         db.refresh(new_user)
         user = new_user
 
-        return {"message": "Login successful", "user": user.email}
+    access_token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(minutes=20))
+    
+    return {
+        "message": "Login successful", 
+        "user": user.email,
+        "access_token": access_token,
+        "token_type": "bearer"
+    }

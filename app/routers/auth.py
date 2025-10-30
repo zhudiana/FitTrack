@@ -9,6 +9,8 @@ from app.dependencies import db_dependency, get_current_user
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt
 from datetime import datetime, timedelta, timezone
+from app.services.email import send_verification_email
+from app.dependencies import user_dependency
 
 
 router = APIRouter(
@@ -25,8 +27,8 @@ class CreateUserRequest(BaseModel):
     sex: Optional[Literal["male", "female"]] = None
     password: str = Field(min_length=8)
 
-class UserVerification(BaseModel):
-    password: str
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=8)
     new_password: str = Field(min_length=8)
 
 class Token(BaseModel):
@@ -41,8 +43,8 @@ def authenticate_user(username: str, password: str, db):
         return False
     return user 
 
-def create_access_token(username: str, user_id: int, expires_delta: timedelta):
-    encode = {"sub": username, "id": user_id}
+def create_access_token(data: dict, expires_delta: timedelta):
+    encode = data.copy()
     expires = datetime.now(timezone.utc) + expires_delta
     encode.update({"exp": expires})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -52,9 +54,19 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: 
     user = authenticate_user(form_data.username, form_data.password, db)
 
     if not user:
-        return "Failed authentication"
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
-    token = create_access_token(user.username, user.id, timedelta(minutes=20))
+    if not getattr(user, "verified_email", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email is not verified",
+        )
+
+    token = create_access_token(data={"sub": user.username, "id": user.id}, expires_delta=timedelta(minutes=20))
     return {"access_token": token, "token_type": "Bearer"}
 
 
@@ -65,12 +77,17 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
         username = create_user_request.username,
         email=create_user_request.email,
         sex=create_user_request.sex,
-        hashed_password=bcrypt_context.hash(create_user_request.password)
+        hashed_password=bcrypt_context.hash(create_user_request.password),
+        verified_email=False,
     )
 
     try:
         db.add(create_user_model)
         db.commit()
+
+        await send_verification_email(create_user_request.email, create_user_request.username)
+
+        return {"message": "User created. Please check your email to verify your account."}
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -78,17 +95,45 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
             detail="Username or email already exists"
         )
 
-@router.put("/change_password", status_code=status.HTTP_204_NO_CONTENT)
-def change_password(user: get_current_user, db: db_dependency, user_verification: UserVerification):
-    if user is None:
+@router.get("/verify/{token}")
+async def verify_email(token: str, db: db_dependency):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("email")
+        if email is None:
+            raise HTTPException(status_code=400, detail="Invalid token")
+
+        user = db.query(Users).filter(Users.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        user.verified_email = True
+        db.commit()
+        return {"message": "Email verified successfully"}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Token has expired")
+    except jwt.JWTError:
+        raise HTTPException(status_code=400, detail="Invalid token")
+
+
+@router.put("/change_password")
+async def change_password(user: user_dependency, db: db_dependency, payload: PasswordChange):
+    if not user:
         raise HTTPException(status_code=401, detail="Authentication Failed")
 
     user_model = db.query(Users).filter(Users.id == user.get('id')).first()
 
-    if not bcrypt_context.verify(user_verification.id, user_model.hashed_password):
-        raise HTTPException(status_code=401, detail="Error on password change")
+    if not user_model:
+        raise HTTPException(status_code=404, detail="User not found")
 
-    user_model.hashed_password = bcrypt_context.hash(user_verification.new_password)
+    if not bcrypt_context.verify(payload.current_password, user_model.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
 
-    db.add(user_model)
+    if bcrypt_context.verify(payload.new_password, user_model.hashed_password):
+        raise HTTPException(status_code=400, detail="New password must be different")
+
+    user_model.hashed_password = bcrypt_context.hash(payload.new_password)
+
     db.commit()
+
+    return {"message": "Password updated successfully"}
