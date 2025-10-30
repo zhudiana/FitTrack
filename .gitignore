@@ -3,3 +3,5 @@ venv/
 measurements.db
 roadmap.md
 app/__pycache__
+__pycache__/
+*.py[cod]
