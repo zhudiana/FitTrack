@@ -74,7 +74,7 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_user(db: db_dependency, create_user_request: CreateUserRequest):
     create_user_model = Users(
-        username = create_user_request.username,
+        username = create_user_request.username.lower(),
         email=create_user_request.email,
         sex=create_user_request.sex,
         hashed_password=bcrypt_context.hash(create_user_request.password),
