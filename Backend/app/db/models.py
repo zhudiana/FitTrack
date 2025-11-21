@@ -13,7 +13,6 @@ class Users(Base):
     username: Mapped[str] = mapped_column(String(30), unique=True, index=True, nullable=False)
     email: Mapped[str] = mapped_column(unique=True, index=True, nullable=False)
     verified_email: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
-    sex: Mapped[Optional[str]] = mapped_column(nullable=True)
     hashed_password: Mapped[Optional[str]] = mapped_column(nullable=True)
 
     is_oauth: Mapped[bool] = mapped_column(default=False) 

@@ -24,7 +24,6 @@ bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 class CreateUserRequest(BaseModel):
     username: str = Field(min_length=5, max_length=15)
     email: EmailStr     # Validates the right email format
-    sex: Optional[Literal["male", "female"]] = None
     password: str = Field(min_length=8)
 
 class PasswordChange(BaseModel):
@@ -76,7 +75,6 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
     create_user_model = Users(
         username = create_user_request.username.lower(),
         email=create_user_request.email,
-        sex=create_user_request.sex,
         hashed_password=bcrypt_context.hash(create_user_request.password),
         verified_email=False,
     )
