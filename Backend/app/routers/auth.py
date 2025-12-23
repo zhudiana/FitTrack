@@ -135,3 +135,5 @@ async def change_password(user: user_dependency, db: db_dependency, payload: Pas
     db.commit()
 
     return {"message": "Password updated successfully"}
+
+

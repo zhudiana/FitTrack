@@ -1,11 +1,8 @@
 import "./App.css";
+import Login from "./components/Login";
 
 function App() {
-  return (
-    <>
-      <div>HEllo</div>
-    </>
-  );
+  return <Login />;
 }
 
 export default App;
