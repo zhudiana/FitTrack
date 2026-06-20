@@ -37,20 +37,24 @@ The scope will grow incrementally as new concepts are learned.
 ## 🛠 Tech Stack
 
 **Frontend**
+
 - React
 - TypeScript
 - (Add styling library if applicable)
 
 **Backend**
+
 - FastAPI (Python)
 
 > Backend concepts and implementation decisions are based on a structured FastAPI learning roadmap, documented separately here:  
 > 🔗 https://github.com/zhudiana/FastAPI-Learning-Roadmap
 
 **Database**
+
 - PostgreSQL
 
 **Other Tools**
+
 - Git & GitHub
 - REST APIs
 - Environment variables & config management
@@ -65,3 +69,20 @@ FitTrack/
 ├── frontend/       # TypeScript frontend
 ├── docs/           # Learning notes & tutorials
 └── README.md
+
+---
+
+## 🖼 Screenshots
+
+<p align="center">
+	<img src="assets/thumbnail.jpg" alt="Thumbnail" width="300" />
+</p>
+
+Gallery:
+
+<p align="center">
+	<img src="assets/pic1.png" alt="Screenshot 1" width="600" />
+	<img src="assets/pic2.png" alt="Screenshot 2" width="600" />
+	<img src="assets/pic3.png" alt="Screenshot 3" width="600" />
+</p>
+```
